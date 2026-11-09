@@ -38,13 +38,35 @@ class Hm_Oauth2 {
      * @return string
      */
     public function request_authorization_url($url, $scope, $state, $login_hint = false) {
-        $res = sprintf('%s?response_type=code&amp;scope=%s&amp;state=%s&amp;'.
-            'approval_prompt=force&amp;access_type=offline&amp;client_id=%s&amp;redirect_uri=%s',
-            $url, $scope, $state, $this->client_id, $this->redirect_uri);
-        if ($login_hint !== false) {
-            $res .= '&amp;login_hint='.$login_hint;
+        $url = (string) $url;
+        $params = array(
+            'response_type' => 'code',
+            'scope' => (string) $scope,
+            'state' => (string) $state,
+            'client_id' => (string) $this->client_id,
+            'redirect_uri' => (string) $this->redirect_uri,
+        );
+        $host = parse_url($url, PHP_URL_HOST);
+        if (is_string($host) && strcasecmp($host, 'accounts.google.com') === 0) {
+            $params['prompt'] = 'consent';
+            $params['access_type'] = 'offline';
         }
-        return $res;
+        if ($login_hint !== false) {
+            $params['login_hint'] = (string) $login_hint;
+        }
+        $fragment = '';
+        $fragment_position = strpos($url, '#');
+        if ($fragment_position !== false) {
+            $fragment = substr($url, $fragment_position);
+            $url = substr($url, 0, $fragment_position);
+        }
+        $separator = str_contains($url, '?') ? '&amp;' : '?';
+        if (preg_match('/(?:\?|&|&amp;)$/', $url)) {
+            $separator = '';
+        }
+        $url = htmlspecialchars($url, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8', false);
+        $fragment = htmlspecialchars($fragment, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8', false);
+        return $url.$separator.http_build_query($params, '', '&amp;', PHP_QUERY_RFC3986).$fragment;
     }
 
     /**
