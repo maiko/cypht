@@ -270,7 +270,7 @@ class Hm_SMTP {
                     break;
                 case 'auth': // supported auth mechanisims
                     $auth_mecs = array_slice($line[1], 1);
-                    $this->supports_auth = array_map(function($v) { return mb_strtolower($v); }, $auth_mecs);
+                    $this->supports_auth = array_map(function($v) { return mb_strtolower(trim($v)); }, $auth_mecs);
                     break;
                 case 'dsn': // supports delivery status notifications
                     $this->supports_dsn = true;

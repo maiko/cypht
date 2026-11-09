@@ -188,6 +188,7 @@
     </testsuite>
     <testsuite name="modules_smtp">
       <file>./modules/smtp/attachment_chunks.php</file>
+      <file>./modules/smtp/hm_smtp.php</file>
     </testsuite>
     <testsuite name="mta_sts">
       <file>./mta_sts.php</file>
