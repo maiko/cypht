@@ -331,10 +331,10 @@ if (!class_exists('Hm_IMAP')) {
                         $this->banner = $res[0];
                     }
                 }
-                if (mb_stristr($response, 'A' . $this->command_count . ' OK')) {
+                if (preg_match('/^A'.(int)$this->command_count.' (?i:OK)(?: |$)/', $response)) {
                     $authed = true;
                     $this->state = 'authenticated';
-                } elseif (mb_strtolower($this->auth) == 'xoauth2' && preg_match("/^\+ ([a-zA-Z0-9=]+)$/", $response, $matches)) {
+                } elseif (mb_strtolower($this->auth) == 'xoauth2' && ($response === '+' || str_starts_with($response, '+ '))) {
                     $this->send_command("\r\n", true);
                     $this->get_response();
                 }

@@ -334,10 +334,8 @@ class Hm_IMAP_Base {
             }
 
             /* check for challenge strings */
-            if (mb_substr($result[$n], 0, 1) == '+') {
-                if (preg_match("/^\+ ([a-zA-Z0-9=]+)$/", $result[$n], $matches)) {
-                    break;
-                }
+            if ($result[$n] === '+' || str_starts_with($result[$n], '+ ')) {
+                break;
             }
 
         /* end outer loop when we receive the tagged response line */
