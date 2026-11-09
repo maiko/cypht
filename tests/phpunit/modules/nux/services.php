@@ -37,4 +37,19 @@ class Hm_Test_Nux_Oauth_Services extends TestCase {
         $this->assertStringContainsString('OFFICE365_TOKEN_URI='.$token, $example);
         $this->assertStringContainsString('OFFICE365_REFRESH_URI='.$token, $example);
     }
+
+    public function test_microsoft_services_keep_their_documented_mail_hosts() {
+        $outlook = Nux_Quick_Services::details('outlook');
+        $office365 = Nux_Quick_Services::details('office365');
+
+        foreach (array($outlook, $office365) as $service) {
+            $this->assertSame('outlook.office365.com', $service['server']);
+            $this->assertSame(993, $service['port']);
+            $this->assertTrue($service['tls']);
+            $this->assertSame(587, $service['smtp']['port']);
+            $this->assertFalse($service['smtp']['tls']);
+        }
+        $this->assertSame('smtp-mail.outlook.com', $outlook['smtp']['server']);
+        $this->assertSame('smtp.office365.com', $office365['smtp']['server']);
+    }
 }
