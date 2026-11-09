@@ -15,7 +15,7 @@ return [
     | to request unique access tokens for each account during the OAuth2 flow.
     | Each token corresponds to a specific user's permissions and account data.
     |
-    | Outlook.com https://account.live.com/developers/applications/
+    | Microsoft: https://entra.microsoft.com/
     | Gmail: https://console.developers.google.com/project
     |
     */
@@ -35,9 +35,9 @@ return [
         'client_id'      => env('OUTLOOK_CLIENT_ID', ''),
         'client_secret'  => env('OUTLOOK_CLIENT_SECRET', ''),
         'client_uri'     => env('OUTLOOK_CLIENT_URI', 'http://localhost/?page=home'),
-        'auth_uri'       => env('OUTLOOK_AUTH_URI', 'https://login.live.com/oauth20_authorize.srf'),
-        'token_uri'      => env('OUTLOOK_TOKEN_URI', 'https://login.live.com/oauth20_token.srf'),
-        'refresh_uri'    => env('OUTLOOK_REFRESH_URI', 'https://login.live.com/oauth20_token.srf')
+        'auth_uri'       => env('OUTLOOK_AUTH_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'),
+        'token_uri'      => env('OUTLOOK_TOKEN_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/token'),
+        'refresh_uri'    => env('OUTLOOK_REFRESH_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/token')
     ],
 
     //[office365]
@@ -45,8 +45,8 @@ return [
         'client_id'      => env('OFFICE365_CLIENT_ID', ''),
         'client_secret'  => env('OFFICE365_CLIENT_SECRET', ''),
         'client_uri'     => env('OFFICE365_CLIENT_URI', 'http://localhost/?page=home'),
-        'auth_uri'       => env('OFFICE365_AUTH_URI', 'https://login.live.com/oauth20_authorize.srf'),
-        'token_uri'      => env('OFFICE365_TOKEN_URI', 'https://login.live.com/oauth20_token.srf'),
-        'refresh_uri'    => env('OFFICE365_REFRESH_URI', 'https://login.live.com/oauth20_token.srf')
+        'auth_uri'       => env('OFFICE365_AUTH_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'),
+        'token_uri'      => env('OFFICE365_TOKEN_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/token'),
+        'refresh_uri'    => env('OFFICE365_REFRESH_URI', 'https://login.microsoftonline.com/common/oauth2/v2.0/token')
     ],
 ];
