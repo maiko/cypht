@@ -695,22 +695,25 @@ function format_attachment($struct,  $output_mod, $part, $dl_args, $at_args) {
     $res = '';
 
     foreach ($struct as $id => $vals) {
-        if(is_array($vals) && isset($vals['type']) && $vals['type'] != 'multipart' && isset($vals['file_attributes']) && !empty($vals['file_attributes'])) {
+        if (is_array($vals) && isset($vals['type']) && $vals['type'] != 'multipart' &&
+                (!empty($vals['file_attributes']) ||
+                (is_array($vals['disposition'] ?? null) && array_key_exists('attachment', $vals['disposition'])))) {
             $size = get_imap_size($vals);
             $desc = get_part_desc($vals, $id, $part);
 
             $res .= '<tr><td class="part_desc" colspan="4">'.$output_mod->html_safe(decode_fld($desc)).'</td>';
-            $res .= '</td><td class="part_size">'.$output_mod->html_safe($size).'</td>';
+            $res .= '<td class="part_size">'.$output_mod->html_safe($size).'</td>';
 
             $res .= '<td class="download_link"><a href="#" data-src="?'.$dl_args.'&amp;imap_msg_part='.$output_mod->html_safe($id).'">'.$output_mod->trans('Download').'</a></td>';
             if ($output_mod->get('allow_delete_attachment') && isset($vals['file_attributes']['attachment'])) {
-                $res .= '<td><a href="?'.$at_args.'&amp;imap_msg_part='.$output_mod->html_safe($id).'" class="remove_attachment">'.$output_mod->trans('Remove').'</a></td></tr>';
+                $res .= '<td><a href="?'.$at_args.'&amp;imap_msg_part='.$output_mod->html_safe($id).'" class="remove_attachment">'.$output_mod->trans('Remove').'</a></td>';
             }
+            $res .= '</tr>';
         }
 
         if(is_array($vals) && isset($vals['subs'])) {
             $sub_res = format_attachment($vals['subs'], $output_mod, $part, $dl_args, $at_args);
-            $res =$sub_res;
+            $res .= $sub_res;
         }
     }
 
