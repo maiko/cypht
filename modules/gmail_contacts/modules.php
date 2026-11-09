@@ -101,8 +101,9 @@ function fetch_gmail_contacts($config, $contact_store, $session=false, $max_goog
         if ($server['server'] == 'imap.gmail.com' && array_key_exists('auth', $server) && $server['auth'] == 'xoauth2') {
             $results = imap_refresh_oauth2_token($server, $config);
             if (!empty($results)) {
-                if (Hm_IMAP_List::update_oauth2_token($id, $results[1], $results[0])) {
+                if (Hm_IMAP_List::update_oauth2_token($id, $results[1], $results[0], $results[2], $results[3])) {
                     Hm_Debug::add(sprintf('Oauth2 token refreshed for IMAP server id %s', $id), 'info');
+                    Hm_IMAP_List::save();
                     $server = Hm_IMAP_List::dump($id, true);
                 }
             }

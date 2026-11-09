@@ -69,4 +69,91 @@ class Hm_Oauth2 {
         return $this->api->command($url, [], array('client_id' => $this->client_id, 'client_secret' => $this->client_secret,
             'refresh_token' => $refresh_token, 'grant_type' => 'refresh_token'));
     }
+
+    /**
+     * Resolve a configured OAuth provider for a stored mail server.
+     *
+     * Legacy Microsoft records using shared hostnames are intentionally not
+     * guessed. They must be reconnected once so the provider can be persisted.
+     *
+     * @param array $server mail server details
+     * @return string provider identifier or an empty string
+     */
+    private static function server_provider($server) {
+        if (!empty($server['oauth2_provider']) && is_string($server['oauth2_provider'])) {
+            return mb_strtolower($server['oauth2_provider']);
+        }
+        $host = mb_strtolower(trim((string) ($server['server'] ?? '')));
+        $legacy_hosts = array(
+            'imap.gmail.com' => 'gmail',
+            'smtp.gmail.com' => 'gmail',
+            'imap-mail.outlook.com' => 'outlook',
+            'smtp-mail.outlook.com' => 'outlook',
+            'imap-mail.office365.com' => 'office365',
+        );
+        return $legacy_hosts[$host] ?? '';
+    }
+
+    /**
+     * Parse a provider expires_in value without accepting booleans or floats.
+     *
+     * @param mixed $value expiry duration returned by the provider
+     * @return int|false positive seconds or false
+     */
+    private static function expiry_seconds($value) {
+        if (is_int($value)) {
+            return $value > 0 ? $value : false;
+        }
+        if (!is_string($value) || !preg_match('/^[1-9][0-9]*$/D', $value)) {
+            return false;
+        }
+        $seconds = (int) $value;
+        if ($seconds <= 0 || (string) $seconds !== $value) {
+            return false;
+        }
+        return $seconds;
+    }
+
+    /**
+     * Refresh an expired mail access token using its persisted provider.
+     *
+     * @param array $server mail server details
+     * @param object $config site configuration
+     * @param int|null $now current Unix timestamp, injectable for tests
+     * @return array expiration, access token and retained or rotated refresh token
+     */
+    public static function refresh_server($server, $config, $now = null) {
+        $now = $now ?? time();
+        if (!array_key_exists('expiration', $server) || (int) $server['expiration'] > $now) {
+            return array();
+        }
+
+        $provider = self::server_provider($server);
+        $details = $provider !== '' ? $config->get($provider, array()) : array();
+        $refresh_token = $server['refresh_token'] ?? '';
+        if (!is_array($details) || empty($details['client_id']) || empty($details['client_secret']) ||
+            empty($details['client_uri']) || empty($details['refresh_uri']) ||
+            !is_string($refresh_token) || $refresh_token === '') {
+            Hm_Msgs::add('Mail authorization is missing. Reconnect the account.', 'danger');
+            return array();
+        }
+
+        $oauth2 = new self($details['client_id'], $details['client_secret'], $details['client_uri']);
+        $result = $oauth2->refresh_token($details['refresh_uri'], $refresh_token);
+        $seconds = is_array($result) ? self::expiry_seconds($result['expires_in'] ?? null) : false;
+        if (!is_array($result) || !isset($result['access_token']) ||
+            !is_string($result['access_token']) || $result['access_token'] === '' ||
+            $seconds === false || $seconds > PHP_INT_MAX - $now) {
+            Hm_Msgs::add('Could not refresh mail authorization. Reconnect the account.', 'danger');
+            return array();
+        }
+        if (array_key_exists('refresh_token', $result)) {
+            if (!is_string($result['refresh_token']) || $result['refresh_token'] === '') {
+                Hm_Msgs::add('Could not refresh mail authorization. Reconnect the account.', 'danger');
+                return array();
+            }
+            $refresh_token = $result['refresh_token'];
+        }
+        return array($now + $seconds, $result['access_token'], $refresh_token, $provider);
+    }
 }

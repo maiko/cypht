@@ -124,9 +124,11 @@ trait Hm_Server_Modify {
      * @param int $id server id
      * @param string $pass new password
      * @param int $expiry new password expiration timestamp
+     * @param string|null $refresh_token rotated refresh token, if returned
+     * @param string|null $provider resolved OAuth provider, if available
      * @return bool
      */
-    public static function update_oauth2_token($id, $pass, $expiry) {
+    public static function update_oauth2_token($id, $pass, $expiry, $refresh_token = null, $provider = null) {
         if (!array_key_exists($id, self::$server_list)) {
             return false;
         }
@@ -138,6 +140,12 @@ trait Hm_Server_Modify {
         }
         self::$server_list[$id]['pass'] = $pass;
         self::$server_list[$id]['expiration'] = $expiry;
+        if ($refresh_token !== null) {
+            self::$server_list[$id]['refresh_token'] = $refresh_token;
+        }
+        if ($provider !== null) {
+            self::$server_list[$id]['oauth2_provider'] = $provider;
+        }
         self::$server_list[$id]['object'] = false;
         return true;
     }

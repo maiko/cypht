@@ -558,9 +558,10 @@ class Hm_Handler_smtp_connect extends Hm_Handler_Module {
                 if (array_key_exists('auth', $smtp_details) && $smtp_details['auth'] == 'xoauth2') {
                     $results = smtp_refresh_oauth2_token($smtp_details, $this->config);
                     if (!empty($results)) {
-                        if (Hm_SMTP_List::update_oauth2_token($form['smtp_server_id'], $results[1], $results[0])) {
+                        if (Hm_SMTP_List::update_oauth2_token($form['smtp_server_id'], $results[1], $results[0], $results[2], $results[3])) {
                             Hm_Debug::add(sprintf('Oauth2 token refreshed for SMTP server id %s', $form['smtp_server_id']), 'info');
                             Hm_SMTP_List::save();
+                            $smtp_details = Hm_SMTP_List::dump($form['smtp_server_id'], true);
                         }
                     }
                 }
@@ -1806,21 +1807,7 @@ function smtp_server_dropdown($data, $output_mod, $recip, $selected_id=false) {
  */
 if (!hm_exists('smtp_refresh_oauth2_token')) {
 function smtp_refresh_oauth2_token($server, $config) {
-    if (array_key_exists('expiration', $server) && (int) $server['expiration'] <= time()) {
-        $oauth2_data = get_oauth2_data($config);
-        $details = array();
-        if ($server['server'] == 'smtp.gmail.com') {
-            $details = $oauth2_data['gmail'];
-        }
-        if (!empty($details)) {
-            $oauth2 = new Hm_Oauth2($details['client_id'], $details['client_secret'], $details['client_uri']);
-            $result = $oauth2->refresh_token($details['refresh_uri'], $server['refresh_token']);
-            if (array_key_exists('access_token', $result)) {
-                return array(strtotime(sprintf('+%d seconds', $result['expires_in'])), $result['access_token']);
-            }
-        }
-    }
-    return array();
+    return Hm_Oauth2::refresh_server($server, $config);
 }}
 
 /**
@@ -2531,7 +2518,7 @@ function smtp_refresh_oauth2_token_on_send($smtp_details, $mod, $smtp_id) {
     if (array_key_exists('auth', $smtp_details) && $smtp_details['auth'] == 'xoauth2') {
         $results = smtp_refresh_oauth2_token($smtp_details, $mod->config);
         if (!empty($results)) {
-            if (Hm_SMTP_List::update_oauth2_token($smtp_id, $results[1], $results[0])) {
+            if (Hm_SMTP_List::update_oauth2_token($smtp_id, $results[1], $results[0], $results[2], $results[3])) {
                 Hm_Debug::add(sprintf('Oauth2 token refreshed for SMTP server id %s', $smtp_id), 'info');
                 Hm_SMTP_List::save();
             }

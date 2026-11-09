@@ -900,27 +900,7 @@ function add_attached_images($txt, $uid, $struct, $imap) {
  */
 if (!hm_exists('imap_refresh_oauth2_token')) {
 function imap_refresh_oauth2_token($server, $config) {
-    if ((int) $server['expiration'] <= time()) {
-        $oauth2_data = get_oauth2_data($config);
-        $details = array();
-        if ($server['server'] == 'imap.gmail.com') {
-            $details = $oauth2_data['gmail'];
-        }
-        elseif ($server['server'] == 'imap-mail.outlook.com') {
-            $details = $oauth2_data['outlook'];
-        }
-        elseif ($server['server'] == 'imap-mail.office365.com') {
-            $details = $oauth2_data['office365'];
-        }
-        if (!empty($details)) {
-            $oauth2 = new Hm_Oauth2($details['client_id'], $details['client_secret'], $details['client_uri']);
-            $result = $oauth2->refresh_token($details['refresh_uri'], $server['refresh_token']);
-            if (array_key_exists('access_token', $result)) {
-                return array(strtotime(sprintf('+%d seconds', $result['expires_in'])), $result['access_token']);
-            }
-        }
-    }
-    return array();
+    return Hm_Oauth2::refresh_server($server, $config);
 }}
 
 /**

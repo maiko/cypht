@@ -88,8 +88,20 @@ class Hm_Test_Servers extends TestCase {
         Hm_Server_Wrapper::add(array('user' => 'testuser', 'pass' => 'testpass', 'auth' => 'test', 'name' => 'test', 'server' => 'test', 'port' => 0, 'tls' => 1, 'id' => 'a1'));
         $this->assertFalse(Hm_Server_Wrapper::update_oauth2_token('a1', 'testpass', 3600));
 
-        Hm_Server_Wrapper::add(array('user' => 'testuser', 'pass' => 'testpass', 'auth' => 'xoauth2', 'expiration' => 10, 'name' => 'test', 'server' => 'test', 'port' => 0, 'tls' => 1, 'id' => 'a2'));
+        Hm_Server_Wrapper::add(array('user' => 'testuser', 'pass' => 'testpass', 'auth' => 'xoauth2', 'expiration' => 10, 'refresh_token' => 'old-refresh', 'name' => 'test', 'server' => 'test', 'port' => 0, 'tls' => 1, 'id' => 'a2'));
         $this->assertTrue(Hm_Server_Wrapper::update_oauth2_token('a2', 'testpass', 3600));
+        $this->assertSame('old-refresh', Hm_Server_Wrapper::dump('a2', true)['refresh_token']);
+        $this->assertTrue(Hm_Server_Wrapper::update_oauth2_token('a2', 'newpass', 7200, 'new-refresh', 'gmail'));
+        $updated = Hm_Server_Wrapper::dump('a2', true);
+        $this->assertSame('newpass', $updated['pass']);
+        $this->assertSame(7200, $updated['expiration']);
+        $this->assertSame('new-refresh', $updated['refresh_token']);
+        $this->assertSame('gmail', $updated['oauth2_provider']);
+        Hm_Server_Wrapper::save();
+        global $user_config;
+        $persisted = $user_config->get('test')['a2'];
+        $this->assertSame('new-refresh', $persisted['refresh_token']);
+        $this->assertSame('gmail', $persisted['oauth2_provider']);
 
     }
     /**
