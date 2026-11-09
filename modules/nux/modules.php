@@ -107,12 +107,24 @@ class Hm_Handler_nux_homepage_data extends Hm_Handler_Module {
  */
 class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
     public function process() {
-        if (array_key_exists('state', $this->request->get) && $this->request->get['state'] == 'nux_authorization') {
-            if (array_key_exists('code', $this->request->get)) {
-                $details = $this->session->get('nux_add_service_details');
+        if (array_key_exists('state', $this->request->get) && nux_oauth2_is_state($this->request->get['state'])) {
+            $transaction = nux_oauth2_consume_transaction($this->request->get['state'], $this->session);
+            if ($transaction['status'] === 'valid' && array_key_exists('code', $this->request->get)) {
+                $details = $transaction['details'];
                 $oauth2 = new Hm_Oauth2($details['client_id'], $details['client_secret'], $details['redirect_uri']);
                 $result = $oauth2->request_token($details['token_uri'], $this->request->get['code']);
-                if (!empty($result) && array_key_exists('access_token', $result)) {
+                $expires_in = is_array($result) && array_key_exists('expires_in', $result) ? $result['expires_in'] : false;
+                $valid_expiry_type = (is_int($expires_in) && $expires_in > 0) ||
+                    (is_string($expires_in) && preg_match('/^[1-9][0-9]*$/D', $expires_in));
+                $expiry_seconds = $valid_expiry_type ? filter_var(
+                    $expires_in,
+                    FILTER_VALIDATE_INT,
+                    array('options' => array('min_range' => 1))
+                ) : false;
+                if (is_array($result) && isset($result['access_token'], $result['expires_in'], $result['refresh_token']) &&
+                    is_string($result['access_token']) && trim($result['access_token']) !== '' &&
+                    $expiry_seconds !== false &&
+                    is_string($result['refresh_token']) && trim($result['refresh_token']) !== '') {
                     Hm_IMAP_List::add(array(
                         'name' => $details['name'],
                         'server' => $details['server'],
@@ -120,7 +132,7 @@ class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
                         'tls' => $details['tls'],
                         'user' => $details['email'],
                         'pass' => $result['access_token'],
-                        'expiration' => strtotime(sprintf("+%d seconds", $result['expires_in'])),
+                        'expiration' => strtotime(sprintf("+%d seconds", $expiry_seconds)),
                         'refresh_token' => $result['refresh_token'],
 			'auth' => 'xoauth2',
 			'type' => $details['type']
@@ -134,7 +146,7 @@ class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
                             'auth' => 'xoauth2',
                             'user' => $details['email'],
                             'pass' => $result['access_token'],
-                            'expiration' => strtotime(sprintf("+%d seconds", $result['expires_in'])),
+                            'expiration' => strtotime(sprintf("+%d seconds", $expiry_seconds)),
 			    'refresh_token' => $result['refresh_token'],
 			    'type' => 'smtp'
                         ));
@@ -146,22 +158,27 @@ class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
                         Hm_Msgs::add("E-mail account successfully added.");
                     }
                     Hm_IMAP_List::clean_up();
-                    $this->session->del('nux_add_service_details');
+                    $current_details = $this->session->get('nux_add_service_details', array());
+                    if (is_array($current_details) &&
+                        ($current_details['id'] ?? false) === $details['id'] &&
+                        ($current_details['email'] ?? false) === $details['email']) {
+                        $this->session->del('nux_add_service_details');
+                    }
                     $this->session->record_unsaved('IMAP server added');
                     $this->session->secure_cookie($this->request, 'hm_reload_folders', '1');
-                    $this->session->close_early();
                 }
                 else {
                     Hm_Msgs::add('An Error Occurred', 'danger');
                 }
             }
-            elseif (array_key_exists('error', $this->request->get)) {
+            elseif ($transaction['status'] === 'valid' && array_key_exists('error', $this->request->get)) {
                 Hm_Msgs::add(ucwords(str_replace('_', ' ', $this->request->get['error'])), 'danger');
             }
             else {
                 Hm_Msgs::add('An Error Occurred', 'danger');
             }
             $this->save_hm_msgs();
+            $this->session->close_early();
             Hm_Dispatch::page_redirect($this->build_page_url('servers'));
         }
     }
@@ -261,8 +278,13 @@ class Hm_Handler_process_nux_service extends Hm_Handler_Module {
                 if (array_key_exists('nux_account_name', $this->request->post) && trim($this->request->post['nux_account_name'])) {
                     $details['name'] = $this->request->post['nux_account_name'];
                 }
+                if (($details['auth'] ?? false) === 'oauth2') {
+                    $details['oauth2_state'] = nux_oauth2_create_transaction($details, $this->session);
+                }
                 $this->out('nux_add_service_details', $details);
-                $this->session->set('nux_add_service_details', $details);
+                $session_details = $details;
+                unset($session_details['oauth2_state']);
+                $this->session->set('nux_add_service_details', $session_details);
             }
         }
     }

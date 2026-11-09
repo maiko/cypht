@@ -162,6 +162,7 @@
     </testsuite>
     <testsuite name="modules_nux">
       <file>./modules/nux/functions.php</file>
+      <file>./modules/nux/handler_modules.php</file>
     </testsuite>
     <testsuite name="modules_sievefilters">
       <file>./modules/sievefilters/functions.php</file>
