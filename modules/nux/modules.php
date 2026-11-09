@@ -122,8 +122,9 @@ class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
                         'pass' => $result['access_token'],
                         'expiration' => strtotime(sprintf("+%d seconds", $result['expires_in'])),
                         'refresh_token' => $result['refresh_token'],
-			'auth' => 'xoauth2',
-			'type' => $details['type']
+                        'oauth2_provider' => $details['id'],
+                        'auth' => 'xoauth2',
+                        'type' => $details['type']
                     ));
                     if (isset($details['smtp'])) {
                         Hm_SMTP_List::add(array(
@@ -135,8 +136,9 @@ class Hm_Handler_process_oauth2_authorization extends Hm_Handler_Module {
                             'user' => $details['email'],
                             'pass' => $result['access_token'],
                             'expiration' => strtotime(sprintf("+%d seconds", $result['expires_in'])),
-			    'refresh_token' => $result['refresh_token'],
-			    'type' => 'smtp'
+                            'refresh_token' => $result['refresh_token'],
+                            'oauth2_provider' => $details['id'],
+                            'type' => 'smtp'
                         ));
                         $this->session->record_unsaved('SMTP server added');
                     }
