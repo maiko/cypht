@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" colors="true" xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd" cacheDirectory=".phpunit.cache" bootstrap="imap_message_list_bootstrap.php">
+  <php>
+    <const name="CYPHT_PHPUNIT_TEST_MODE" value="phpunit"/>
+  </php>
+  <testsuites>
+    <testsuite name="imap_message_list">
+      <file>./modules/imap/hm_imap_message_list.php</file>
+    </testsuite>
+  </testsuites>
+</phpunit>

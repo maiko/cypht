@@ -1043,6 +1043,7 @@ if (!class_exists('Hm_IMAP')) {
                     $count = count($vals);
                     $header_founded = false;
                     $body_founded = false;
+                    $flds['body'] = 'content_body';
                     $flds['type_msg'] = '';
                     $bodystructure_found = false;
                     for ($i=0;$i<$count;$i++) {
@@ -1082,26 +1083,19 @@ if (!class_exists('Hm_IMAP')) {
                         }
                         elseif ($vals[$i] == 'BODY[TEXT' && !$body_founded) {
                             $body_founded = true;
-                            $content = '';
-                            $i++;
-                            $i++;
-                            while(isset($vals[$i]) && $vals[$i] != ')') {
-                                $content .= $vals[$i];
+                            $i += 2; // Skip BODY[TEXT and its closing bracket.
+                            if (isset($vals[$i]) && preg_match('/^<\d+>$/D', $vals[$i])) {
                                 $i++;
                             }
-                            $i++;
+                            // The reader stores the entire literal as one value. Later
+                            // FETCH attributes (including UID) must remain outside it.
+                            $content = $vals[$i] ?? '';
                             if (! empty($content)) {
-                                if (substr($content, 0, 3) == "<0>") {
-                                    $content = substr($content, 3);
-                                }
                                 $parser = new MailMimeParser();
                                 $str_parser = $parser->parse($content, false);
-                                $content = $str_parser->getTextContent();
+                                $content = $str_parser->getTextContent() ?? '';
                             }
                             $flds['body'] = $content;
-                            if (!$header_founded) {
-                                $i = 0;
-                            }
                         }
                         elseif (isset($tags[mb_strtoupper($vals[$i])])) {
                             if (isset($vals[($i + 1)])) {

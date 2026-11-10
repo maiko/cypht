@@ -193,8 +193,8 @@ class Hm_IMAP_Base {
                 }
             }
 
-            /* if we found a worthwhile chunk add it to the results set */
-            if ($chunk) {
+            /* Empty strings and the string "0" still occupy an IMAP value. */
+            if ($chunk !== '' || $char == '{' || $char == '"') {
                 $parts[] = $chunk;
             }
         }
