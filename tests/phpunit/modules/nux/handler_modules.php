@@ -49,18 +49,17 @@ class Hm_Test_Nux_Oauth_Handler_Modules extends TestCase {
             'state' => 'nux_authorization',
             'code' => 'authorization-code',
         );
+        Hm_IMAP_List::$added = array();
+        Hm_SMTP_List::$added = array();
 
         $handler = new Hm_Handler_process_oauth2_authorization($parent, 'home');
         $handler->process();
 
-        $servers = Hm_IMAP_List::dump(false, true);
-        $imap = array_values(array_filter($servers, function($server) {
-            return ($server['type'] ?? null) === 'imap';
-        }))[0];
-        $smtp = array_values(array_filter($servers, function($server) {
-            return ($server['type'] ?? null) === 'smtp';
-        }))[0];
-        $this->assertSame('outlook', $imap['oauth2_provider']);
-        $this->assertSame('outlook', $smtp['oauth2_provider']);
+        $this->assertCount(1, Hm_IMAP_List::$added);
+        $this->assertCount(1, Hm_SMTP_List::$added);
+        $this->assertSame('outlook', Hm_IMAP_List::$added[0]['oauth2_provider']);
+        $this->assertSame('imap', Hm_IMAP_List::$added[0]['type']);
+        $this->assertSame('outlook', Hm_SMTP_List::$added[0]['oauth2_provider']);
+        $this->assertSame('smtp', Hm_SMTP_List::$added[0]['type']);
     }
 }

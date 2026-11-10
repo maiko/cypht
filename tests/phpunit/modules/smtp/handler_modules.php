@@ -2,6 +2,15 @@
 
 use PHPUnit\Framework\TestCase;
 
+class Hm_SMTP_Oauth_Server extends Fake_IMAP_Server {
+    public static $commands = [];
+
+    public function stream_write($data) {
+        self::$commands[] = trim($data);
+        return parent::stream_write($data);
+    }
+}
+
 class Smtp_Handler_Test {
     public $post = array();
     public $get = array();
@@ -74,6 +83,71 @@ class Hm_Test_Smtp_Handler_Modules extends TestCase {
             'pass' => 'secret',
             'type' => 'imap',
         ), $overrides);
+    }
+
+    /**
+     * @preserveGlobalState disabled
+     * @runInSeparateProcess
+     */
+    public function test_smtp_connect_uses_refreshed_oauth_token() {
+        $parent = build_parent_mock();
+        $parent->site_config->set('gmail', array(
+            'client_id' => 'gmail-client',
+            'client_secret' => 'gmail-secret',
+            'client_uri' => 'https://cypht.example/',
+            'refresh_uri' => 'https://provider.example/token',
+        ));
+        $parent->request->post = array(
+            'smtp_connect' => 1,
+            'smtp_server_id' => 'smtp-test',
+        );
+        Hm_SMTP_List::init($parent->user_config, $parent->session);
+        Hm_SMTP_List::add(array(
+            'id' => 'smtp-test',
+            'name' => 'Gmail',
+            'server' => 'smtp.gmail.com',
+            'port' => 587,
+            'tls' => false,
+            'user' => 'user@example.com',
+            'pass' => 'old-access-token',
+            'expiration' => 1,
+            'refresh_token' => 'refresh-token',
+            'oauth2_provider' => 'gmail',
+            'auth' => 'xoauth2',
+            'type' => 'smtp',
+        ));
+        Hm_Functions::$exec_res = json_encode(array(
+            'access_token' => 'new-access-token',
+            'expires_in' => 3600,
+        ));
+        $hostname = preg_replace('/:\d+$/', '', php_uname('n'));
+        $challenge = "user=user@example.com\x01auth=Bearer new-access-token\x01\x01";
+        $authCommand = 'AUTH XOAUTH2 '.base64_encode($challenge);
+        $oldChallenge = "user=user@example.com\x01auth=Bearer old-access-token\x01\x01";
+        Fake_IMAP_Server::$custom_responses = [
+            'EHLO '.$hostname => "250 AUTH XOAUTH2 PLAIN\r\n",
+            $authCommand => "235 Authentication successful\r\n",
+            'AUTH XOAUTH2 '.base64_encode($oldChallenge) => "235 Authentication successful\r\n",
+        ];
+        Hm_SMTP_Oauth_Server::$commands = [];
+        if (in_array('foo', stream_get_wrappers(), true)) {
+            stream_wrapper_unregister('foo');
+        }
+        if (!stream_wrapper_register('foo', Hm_SMTP_Oauth_Server::class)) {
+            throw new RuntimeException('Unable to register the SMTP test transport');
+        }
+        try {
+            $handler = new Hm_Handler_smtp_connect($parent, 'test');
+            $handler->process();
+
+            $mailbox = Hm_SMTP_List::dump('smtp-test', true)['object'];
+            $this->assertTrue($mailbox->authed());
+            $this->assertSame(['EHLO '.$hostname, $authCommand], Hm_SMTP_Oauth_Server::$commands);
+        } finally {
+            Fake_IMAP_Server::$custom_responses = [];
+            stream_wrapper_unregister('foo');
+            stream_wrapper_register('foo', Fake_IMAP_Server::class);
+        }
     }
 
     /**

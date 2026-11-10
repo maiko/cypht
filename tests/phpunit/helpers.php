@@ -85,6 +85,11 @@ class Handler_Test {
 }
 class Hm_SMTP_List extends Hm_Server_Wrapper {
     public static $state = '';
+    public static $added = array();
+    public static function add($atts, $save = true) {
+        self::$added[] = $atts;
+        return parent::add($atts, $save);
+    }
     public static function connect($id, $cache=false, $user=false, $pass=false, $save_credentials=false) {
         self::$server_list[$id]['object'] = new Hm_Test_Server();
         self::$server_list[$id]['connected'] = true;
@@ -97,6 +102,11 @@ class Hm_SMTP_List extends Hm_Server_Wrapper {
 }
 class Hm_IMAP_List extends Hm_Server_Wrapper {
     public static $state = false;
+    public static $added = array();
+    public static function add($atts, $save = true) {
+        self::$added[] = $atts;
+        return parent::add($atts, $save);
+    }
     public static function connect($id, $cache=false, $user=false, $pass=false, $save_credentials=false) {
         global $user_config, $session;
         Hm_IMAP::$allow_connection = self::$state;

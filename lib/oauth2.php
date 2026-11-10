@@ -80,8 +80,16 @@ class Hm_Oauth2 {
      * @return string provider identifier or an empty string
      */
     private static function server_provider($server) {
-        if (!empty($server['oauth2_provider']) && is_string($server['oauth2_provider'])) {
-            return mb_strtolower($server['oauth2_provider']);
+        $providers = config('oauth2');
+        if (!is_array($providers)) {
+            return '';
+        }
+        if (array_key_exists('oauth2_provider', $server)) {
+            if (!is_string($server['oauth2_provider'])) {
+                return '';
+            }
+            $provider = mb_strtolower(trim($server['oauth2_provider']));
+            return $provider !== '' && array_key_exists($provider, $providers) ? $provider : '';
         }
         $host = mb_strtolower(trim((string) ($server['server'] ?? '')));
         $legacy_hosts = array(
@@ -133,7 +141,7 @@ class Hm_Oauth2 {
         $refresh_token = $server['refresh_token'] ?? '';
         if (!is_array($details) || empty($details['client_id']) || empty($details['client_secret']) ||
             empty($details['client_uri']) || empty($details['refresh_uri']) ||
-            !is_string($refresh_token) || $refresh_token === '') {
+            !is_string($refresh_token) || trim($refresh_token) === '') {
             Hm_Msgs::add('Mail authorization is missing. Reconnect the account.', 'danger');
             return array();
         }
@@ -142,13 +150,13 @@ class Hm_Oauth2 {
         $result = $oauth2->refresh_token($details['refresh_uri'], $refresh_token);
         $seconds = is_array($result) ? self::expiry_seconds($result['expires_in'] ?? null) : false;
         if (!is_array($result) || !isset($result['access_token']) ||
-            !is_string($result['access_token']) || $result['access_token'] === '' ||
+            !is_string($result['access_token']) || trim($result['access_token']) === '' ||
             $seconds === false || $seconds > PHP_INT_MAX - $now) {
             Hm_Msgs::add('Could not refresh mail authorization. Reconnect the account.', 'danger');
             return array();
         }
         if (array_key_exists('refresh_token', $result)) {
-            if (!is_string($result['refresh_token']) || $result['refresh_token'] === '') {
+            if (!is_string($result['refresh_token']) || trim($result['refresh_token']) === '') {
                 Hm_Msgs::add('Could not refresh mail authorization. Reconnect the account.', 'danger');
                 return array();
             }

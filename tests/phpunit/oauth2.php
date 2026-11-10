@@ -19,6 +19,7 @@ class Hm_Test_Oauth2 extends TestCase {
     }
 
     public function setUp(): void {
+        Hm_Msgs::flush();
         $this->oauth2 = new Hm_Oauth2('client_id', 'secret', 'uri');
     }
     /**
@@ -89,7 +90,7 @@ class Hm_Test_Oauth2 extends TestCase {
     }
 
     public function test_refresh_server_does_not_fallback_from_unknown_explicit_provider() {
-        $config = $this->provider_config('gmail');
+        $config = $this->provider_config('missing-provider');
         $server = array(
             'server' => 'imap.gmail.com',
             'expiration' => 1,
@@ -100,15 +101,90 @@ class Hm_Test_Oauth2 extends TestCase {
         $this->assertSame(array(), Hm_Oauth2::refresh_server($server, $config, 1000));
     }
 
-    public function test_refresh_server_rejects_malformed_token_response() {
-        Hm_Functions::$exec_res = json_encode(array(
-            'access_token' => 'new-access-token',
-            'expires_in' => true,
+    public static function invalidExplicitProviders() {
+        return array(
+            'numeric' => array(0),
+            'empty' => array(''),
+            'whitespace' => array('   '),
+        );
+    }
+
+    /**
+     * @dataProvider invalidExplicitProviders
+     */
+    public function test_refresh_server_rejects_invalid_explicit_provider($provider) {
+        $server = array(
+            'server' => 'imap.gmail.com',
+            'expiration' => 1,
+            'oauth2_provider' => $provider,
+            'refresh_token' => 'refresh-token',
+        );
+
+        $this->assertSame(array(), Hm_Oauth2::refresh_server(
+            $server,
+            $this->provider_config('gmail'),
+            1000
         ));
+    }
+
+    public static function malformedTokenResponses() {
+        return array(
+            'access token array' => array(array(
+                'access_token' => array('not-a-token'),
+                'expires_in' => 3600,
+            )),
+            'blank access token' => array(array(
+                'access_token' => " \t ",
+                'expires_in' => 3600,
+            )),
+            'refresh token array' => array(array(
+                'access_token' => 'new-access-token',
+                'refresh_token' => array('not-a-token'),
+                'expires_in' => 3600,
+            )),
+            'blank refresh token' => array(array(
+                'access_token' => 'new-access-token',
+                'refresh_token' => " \n ",
+                'expires_in' => 3600,
+            )),
+            'boolean expiry' => array(array(
+                'access_token' => 'new-access-token',
+                'expires_in' => true,
+            )),
+            'oversized expiry' => array(array(
+                'access_token' => 'new-access-token',
+                'expires_in' => '99999999999999999999999999999999',
+            )),
+            'overflowing expiry' => array(array(
+                'access_token' => 'new-access-token',
+                'expires_in' => PHP_INT_MAX,
+            )),
+        );
+    }
+
+    /**
+     * @dataProvider malformedTokenResponses
+     */
+    public function test_refresh_server_rejects_malformed_token_response($response) {
+        Hm_Functions::$exec_res = json_encode($response);
         $server = array(
             'server' => 'imap.gmail.com',
             'expiration' => 1,
             'refresh_token' => 'refresh-token',
+        );
+
+        $this->assertSame(array(), Hm_Oauth2::refresh_server(
+            $server,
+            $this->provider_config('gmail'),
+            1000
+        ));
+    }
+
+    public function test_refresh_server_rejects_blank_stored_refresh_token() {
+        $server = array(
+            'server' => 'imap.gmail.com',
+            'expiration' => 1,
+            'refresh_token' => " \t ",
         );
 
         $this->assertSame(array(), Hm_Oauth2::refresh_server(
@@ -141,6 +217,7 @@ class Hm_Test_Oauth2 extends TestCase {
     }
     public function tearDown(): void {
         Hm_Functions::$exec_res = '{"unit":"test"}';
+        Hm_Msgs::flush();
         unset($this->oauth2);
     }
 }
